@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Passive-Aggressive Converter</title>
+    <style>
+      :root {
+        --bg-color: #121214;
+        --card-bg: #1e1e24;
+        --text-main: #e1e1e6;
+        --text-dim: #a8a8b3;
+        --accent: #8257e5; /* Purple */
+        --accent-hover: #9466ff;
+        --error: #e83f5b;
+        --success: #04d361;
+        --font-ui: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --font-mono: "Courier New", Courier, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: var(--font-ui);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      /* Container */
+      .converter-card {
+        background-color: var(--card-bg);
+        width: 100%;
+        max-width: 450px;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        border: 1px solid #323238;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Header */
+      header {
+        text-align: center;
+        border-bottom: 1px solid #323238;
+        padding-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: var(--text-main);
+      }
+
+      .subtitle {
+        font-size: 0.9rem;
+        color: var(--text-dim);
+        font-style: italic;
+      }
+
+      /* Input Area */
+      .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        position: relative;
+      }
+
+      label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-dim);
+        font-weight: 600;
+      }
+
+      .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      input[type="number"] {
+        width: 100%;
+        background: #121214;
+        border: 2px solid #323238;
+        color: var(--text-main);
+        padding: 1rem;
+        font-size: 1.2rem;
+        border-radius: 8px;
+        outline: none;
+        transition: border-color 0.2s;
+        font-family: var(--font-mono);
+      }
+
+      input[type="number"]:focus {
+        border-color: var(--accent);
+      }
+
+      .unit-label {
+        position: absolute;
+        right: 1rem;
+        color: var(--text-dim);
+        font-weight: bold;
+        pointer-events: none;
+      }
+
+      /* Button */
+      button#convert-btn {
+        background: var(--accent);
+        color: white;
+        border: none;
+        padding: 1rem;
+        font-size: 1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        cursor: pointer;
+        transition:
+          transform 0.1s,
+          background 0.2s;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 0 #5c35c9; /* 3D effect */
+      }
+
+      button#convert-btn:active {
+        transform: translateY(4px);
+        box-shadow: 0 0 0 transparent;
+      }
+
+      button#convert-btn:disabled {
+        background: #323238;
+        color: #666;
+        box-shadow: none;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Result Display */
+      .result-container {
+        background: #121214;
+        border-radius: 8px;
+        padding: 1.5rem;
+        text-align: center;
+        border: 1px dashed #323238;
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .result-value {
+        font-size: 2.5rem;
+        font-family: var(--font-mono);
+        font-weight: bold;
+        color: var(--success);
+        opacity: 0; /* Hidden by default */
+        transform: translateY(10px);
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+      }
+
+      .result-label {
+        font-size: 0.9rem;
+        color: var(--text-dim);
+        margin-top: 0.5rem;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      .result-container.show .result-value,
+      .result-container.show .result-label {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Taunt Console */
+      .taunt-console {
+        background: #000;
+        border: 1px solid #333;
+        border-radius: 6px;
+        padding: 10px;
+        height: 120px;
+        overflow-y: auto;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        display: flex;
+        flex-direction: column-reverse; /* New messages at bottom visually but scrolled */
+      }
+
+      .log-entry {
+        margin-bottom: 6px;
+        border-left: 2px solid var(--accent);
+        padding-left: 8px;
+        animation: fadeIn 0.3s ease;
+      }
+
+      .log-entry.error {
+        border-color: var(--error);
+        color: #ff9999;
+      }
+      .log-entry.success {
+        border-color: var(--success);
+        color: #99ffbb;
+      }
+      .log-entry.info {
+        border-color: #666;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateX(-5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      /* Scrollbar styling for console */
+      .taunt-console::-webkit-scrollbar {
+        width: 6px;
+      }
+      .taunt-console::-webkit-scrollbar-track {
+        background: #111;
+      }
+      .taunt-console::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="converter-card">
+      <header>
+        <h1>The Rude Converter</h1>
+        <p class="subtitle">I do the math. I judge the numbers.</p>
+      </header>
+
+      <section class="input-group">
+        <label for="fahrenheit">Enter Fahrenheit</label>
+        <div class="input-wrapper">
+          <input
+            type="number"
+            id="fahrenheit"
+            placeholder="e.g. 98.6"
+            step="any"
+          />
+          <span class="unit-label">°F</span>
+        </div>
+      </section>
+
+      <button id="convert-btn">Convert (If you dare)</button>
+
+      <section class="result-container" id="result-area">
+        <div class="result-value" id="celsius-output">0</div>
+        <div class="result-label">Degrees Celsius</div>
+      </section>
+
+      <div class="taunt-console" id="console-log">
+        <div class="log-entry info">
+          > System initialized. Waiting for input...
+        </div>
+      </div>
+    </main>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const input = document.getElementById("fahrenheit");
+        const btn = document.getElementById("convert-btn");
+        const resultArea = document.getElementById("result-area");
+        const outputVal = document.getElementById("celsius-output");
+        const consoleLog = document.getElementById("console-log");
+
+        // Taunt Database
+        const taunts = {
+          empty: [
+            "It's empty. Like your head right now.",
+            "Enter a number. I don't have all day.",
+            "Is it so hard to type a digit?",
+            "Error: User competence not found.",
+          ],
+          calculating: [
+            "Calculating... because you can't.",
+            "Doing arithmetic. Hold your horses.",
+            "Processing your trivial request...",
+            "Burning CPU cycles for this.",
+            "Reading the value... judging the value...",
+          ],
+          cold: [
+            "It's freezing. Put a sweater on.",
+            "Colder than your ex's heart.",
+            "Polar bears called, they want their weather back.",
+            "Ice cold. Literally.",
+          ],
+          mild: [
+            "It's just... room temperature. Boring.",
+            "Balmy. Meh.",
+            "Basically t-shirt weather. Congrats.",
+            "Is that supposed to be impressive?",
+          ],
+          hot: [
+            "Hotter than hell.",
+            "Why is it so hot? Global warming?",
+            "I'm sweating just looking at that number.",
+            "Turn on the AC, you barbarian.",
+          ],
+          extreme: [
+            "That number isn't even real on Earth.",
+            "Are you trying to melt the server?",
+            "Okay, now you're just showing off.",
+            "Impossible number. Error.",
+          ],
+          specific: {
+            32: "Water freezes at 32. Finally, you got one right.",
+            212: "Boiling point. Riveting.",
+            98.6: "Normal human body temp. You're alive, I guess.",
+            0: "Zero. Very original.",
+            "-40": "Minus 40 is the same in both. Neat party trick.",
+          },
+        };
+
+        // Helper to get random item from array
+        const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+        // Function to log messages to the fake console
+        function logMessage(msg, type = "info") {
+          const div = document.createElement("div");
+          div.className = `log-entry ${type}`;
+          div.textContent = `> ${msg}`;
+          // Insert after the first child (top of stack logic reversed via CSS flex-direction)
+          consoleLog.insertBefore(div, consoleLog.firstChild);
+        }
+
+        // The Logic
+        btn.addEventListener("click", () => {
+          const val = input.value;
+
+          // Reset UI
+          resultArea.classList.remove("show");
+          outputVal.textContent = "---";
+          btn.disabled = true;
+          btn.textContent = "Judging...";
+
+          // Validation
+          if (val === "" || isNaN(val)) {
+            logMessage(getRandom(taunts.empty), "error");
+            setTimeout(() => {
+              btn.disabled = false;
+              btn.textContent = "Convert (If you dare)";
+              input.focus();
+            }, 1000);
+            return;
+          }
+
+          const fTemp = parseFloat(val);
+
+          // Fake Loading Sequence
+          let steps = 0;
+          const maxSteps = 3; // Number of taunt updates during calc
+          const interval = setInterval(() => {
+            logMessage(getRandom(taunts.calculating), "info");
+            steps++;
+            if (steps >= maxSteps) {
+              clearInterval(interval);
+              finishCalculation(fTemp);
+            }
+          }, 600);
+        });
+
+        function finishCalculation(f) {
+          // Actual Math
+          const c = ((f - 32) * 5) / 9;
+
+          // Display Result
+          outputVal.textContent = c.toFixed(2); // 2 decimal places
+          resultArea.classList.add("show");
+
+          // Select the right taunt
+          let finalTaunt = "";
+
+          // Check specific overrides
+          if (taunts.specific.hasOwnProperty(f)) {
+            finalTaunt = taunts.specific[f];
+          } else if (c < 0) {
+            finalTaunt = getRandom(taunts.cold);
+          } else if (c > 35) {
+            finalTaunt = getRandom(taunts.hot);
+          } else if (c > 100 || c < -50) {
+            finalTaunt = getRandom(taunts.extreme);
+          } else {
+            finalTaunt = getRandom(taunts.mild);
+          }
+
+          logMessage(`Result: ${c.toFixed(2)}°C`, "success");
+          setTimeout(() => {
+            logMessage(finalTaunt, "info");
+          }, 300);
+
+          // Reset Button
+          btn.disabled = false;
+          btn.textContent = "Convert Another";
+        }
+
+        // Add Enter key support
+        input.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            btn.click();
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
